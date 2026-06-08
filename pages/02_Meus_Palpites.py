@@ -35,6 +35,8 @@ with tab_games:
         for phase in open_phases:
             st.subheader(f"📋 {phase['name']} — Aberta")
             games = db.list_games(phase["id"])
+            #adicionado tirar depois
+            st.write("Quantidade de jogos retornados:", len(games))
             if not games:
                 st.caption("Nenhum jogo nesta fase.")
                 continue
