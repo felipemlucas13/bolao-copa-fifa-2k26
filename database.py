@@ -303,7 +303,7 @@ def list_games(phase_id: int | None = None) -> list[dict]:
         if phase_id:
             rows = conn.execute(
                 """
-                SELECT g.*, p.name AS phase_name, p.status AS phase_status
+                SELECT DISTINCT g.*, p.name AS phase_name, p.status AS phase_status
                 FROM games g
                 JOIN phases p ON p.id = g.phase_id
                 WHERE g.phase_id = ?
@@ -314,7 +314,7 @@ def list_games(phase_id: int | None = None) -> list[dict]:
         else:
             rows = conn.execute(
                 """
-                SELECT g.*, p.name AS phase_name, p.status AS phase_status
+                SELECT DISTINCT g.*, p.name AS phase_name, p.status AS phase_status
                 FROM games g
                 JOIN phases p ON p.id = g.phase_id
                 ORDER BY p.sort_order, g.game_datetime, g.id
