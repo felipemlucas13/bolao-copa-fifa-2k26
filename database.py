@@ -75,7 +75,8 @@ def init_db():
                 away_score INTEGER,
                 finished INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
-                FOREIGN KEY (phase_id) REFERENCES phases(id) ON DELETE CASCADE
+                FOREIGN KEY (phase_id) REFERENCES phases(id) ON DELETE CASCADE,
+                UNIQUE(phase_id, team_home, team_away, game_datetime)
             );
 
             CREATE TABLE IF NOT EXISTS predictions (
