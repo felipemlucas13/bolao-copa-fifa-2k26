@@ -48,7 +48,10 @@ with tab_games:
                     if game.get("game_datetime"):
                         label += f" — {game['game_datetime']}"
                     if game.get("group_name"):
-                        label += f" (Grupo {game['group_name']})"
+                        if "Grupo" in game["group_name"]:
+                            label += f" ({game['group_name']})"
+                        else:
+                            label += f" (Grupo {game['group_name']})"
 
                     ex = existing.get(game["id"])
                     c1, c2, c3 = st.columns([3, 1, 1])
