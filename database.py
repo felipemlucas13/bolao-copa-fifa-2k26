@@ -363,7 +363,9 @@ def get_prediction_history(user_id: int, game_id: int | None = None) -> list[dic
     if game_id:
         query = query.eq("game_id", game_id)
         
-    result = query.order("version", desc=True).execute()
+    # Correção segura para ordenamento decrescente
+    result = query.order("version", desc=True, nulls_first=False).execute()
+    
     for row in result.data:
         game = row.get("games") or {}
         row["team_home"] = game.get("team_home")
@@ -453,7 +455,8 @@ def update_special_points(user_id: int, points_champion: int, points_vice: int, 
 
 
 def get_special_prediction_history(user_id: int) -> list[dict]:
-    result = supabase.table("special_prediction_history").select("*").eq("user_id", user_id).order("version", desc=True).execute()
+    # Correção segura para ordenamento decrescente
+    result = supabase.table("special_prediction_history").select("*").eq("user_id", user_id).order("version", desc=True, nulls_first=False).execute()
     return result.data
 
 
@@ -487,7 +490,9 @@ def save_ranking_snapshot(user_id: int, total_points: int, position: int):
 
 
 def get_latest_snapshots() -> list[dict]:
-    result = supabase.table("ranking_snapshots").select("*").order("snapshot_at", desc=True).execute()
+    # Correção segura para ordenamento decrescente
+    result = supabase.table("ranking_snapshots").select("*").order("snapshot_at", desc=True, nulls_first=False).execute()
+    
     seen = set()
     latest = []
     for row in result.data:
