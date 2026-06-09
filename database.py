@@ -150,7 +150,8 @@ def list_participants() -> list[dict]:
 
 
 def set_user_active(user_id: int, active: bool):
-    supabase.table("users").update({"active": active}).eq("id", user_id).eq("role", "participant").execute()
+    is_active = bool(active)
+    supabase.table("users").update({"active": is_active}).eq("id", user_id).eq("role", "participant").execute()
 
 def update_user_password(user_id: int, password_hash: str):
     supabase.table("users").update({"password_hash": password_hash}).eq("id", user_id).execute()
