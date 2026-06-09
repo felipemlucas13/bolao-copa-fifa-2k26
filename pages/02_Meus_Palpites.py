@@ -123,7 +123,6 @@ with tab_games:
                         st.session_state[f"salvando_{phase['id']}"] = False
                         st.rerun()
 
-# ------------ FIM DA SUBSTITUIÇÃO ------------
     st.divider()
     st.subheader("Meus palpites registrados")
     filter_phase = st.selectbox(
@@ -155,6 +154,16 @@ with tab_games:
                 }
             )
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        
+        # --- O BOTÃO DO PDF ENTRA AQUI LOGO ABAIXO DA SUA TABELA ---
+        pdf_data = gerar_pdf_palpites(my_preds, user["full_name"])
+        st.download_button(
+            label="📥 Exportar Palpites em PDF",
+            data=pdf_data,
+            file_name=f"palpites_{user['username']}.pdf",
+            mime="application/pdf",
+            type="secondary"
+        )
     else:
         st.info("Você ainda não enviou palpites.")
 
