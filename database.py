@@ -6,6 +6,18 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+import streamlit as st
+from supabase import create_client
+
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+print("URL:", SUPABASE_URL)
+print("KEY START:", repr(SUPABASE_KEY[:10]))
+print("KEY LEN:", len(SUPABASE_KEY))
+supabase = create_client(
+    SUPABASE_URL,
+    SUPABASE_KEY
+)
 
 DB_PATH = Path(__file__).parent / "bolao.db"
 
@@ -188,48 +200,84 @@ def now_iso() -> str:
 
 
 def count_admins() -> int:
-    with db_session() as conn:
-        return conn.execute(
-            "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND active = 1"
-        ).fetchone()["c"]
+    result = (
+        supabase
+        .table("users")
+        .select("id", count="exact")
+        .eq("role", "admin")
+        .eq("active", True)
+        .execute()
+    )
 
+    return result.count or 0
 
 def create_user(username: str, password_hash: str, full_name: str, role: str) -> int:
-    with db_session() as conn:
-        cur = conn.execute(
-            """
-            INSERT INTO users (username, password_hash, full_name, role, created_at)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (username, password_hash, full_name, role, now_iso()),
+
+    result = (
+        supabase
+        .table("users")
+        .insert(
+            {
+                "username": username,
+                "password_hash": password_hash,
+                "full_name": full_name,
+                "role": role,
+                "active": True,
+            }
         )
-        return cur.lastrowid
+        .execute()
+    )
+
+    return result.data[0]["id"]
 
 
 def get_user_by_username(username: str) -> dict | None:
-    with db_session() as conn:
-        row = conn.execute(
-            "SELECT * FROM users WHERE username = ? AND active = 1", (username,)
-        ).fetchone()
-        return row_to_dict(row)
+
+    result = (
+        supabase
+        .table("users")
+        .select("*")
+        .eq("username", username)
+        .eq("active", True)
+        .limit(1)
+        .execute()
+    )
+
+    if not result.data:
+        return None
+
+    return result.data[0]
 
 
 def get_user_by_id(user_id: int) -> dict | None:
-    with db_session() as conn:
-        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        return row_to_dict(row)
+
+    result = (
+        supabase
+        .table("users")
+        .select("*")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+
+    if not result.data:
+        return None
+
+    return result.data[0]
 
 
 def list_participants() -> list[dict]:
-    with db_session() as conn:
-        rows = conn.execute(
-            """
-            SELECT id, username, full_name, role, active, created_at
-            FROM users WHERE role = 'participant'
-            ORDER BY full_name
-            """
-        ).fetchall()
-        return rows_to_list(rows)
+
+    result = (
+        supabase
+        .table("users")
+        .select("id,username,full_name,role,active,created_at")
+        .eq("role", "participant")
+        .order("full_name")
+        .execute()
+    )
+
+    return result.data
 
 
 def set_user_active(user_id: int, active: bool):
