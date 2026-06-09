@@ -387,12 +387,15 @@ def get_prediction_history(user_id: int, game_id: int | None = None) -> list[dic
     if game_id:
         query = query.eq("game_id", game_id)
         
+    # Correção da sintaxe do order desc no Supabase
     result = query.order("version", desc=True).execute()
+    
     for row in result.data:
         game = row.get("games") or {}
         row["team_home"] = game.get("team_home")
         row["team_away"] = game.get("team_away")
     return result.data
+
 
 # --- Special predictions ---
 
@@ -436,9 +439,10 @@ def save_special_prediction(user_id: int, champion: str, vice: str, top_scorer: 
 
     return result.data[0]
 
-def get_special_prediction(user_id: int) -> dict | None:
-    result = supabase.table("special_predictions").select("*").eq("user_id", user_id).limit(1).execute()
-    return result.data[0] if result.data else None
+def get_special_prediction_history(user_id: int) -> list[dict]:
+    # Correção da sintaxe do order desc no Supabase
+    result = supabase.table("special_prediction_history").select("*").eq("user_id", user_id).order("version", desc=True).execute()
+    return result.data
 
 def get_all_special_predictions() -> list[dict]:
     result = supabase.table("special_predictions").select("*, users(full_name, username)").execute()
@@ -484,12 +488,8 @@ def save_ranking_snapshot(user_id: int, total_points: int, position: int):
     }).execute()
 
 def get_latest_snapshots() -> list[dict]:
-    # Como filtros complexos de MAX/GROUP BY nativos ficam melhores em RPC/SQL no Supabase,
-    # Uma forma limpa de fazer via código Python é puxar ordenado por data e tratar ou usar uma view.
-    # Mas para manter compatível de forma rápida, buscamos os snapshots ordenados por data decrescente:
     result = supabase.table("ranking_snapshots").select("*").order("snapshot_at", desc=True).execute()
     
-    # Filtra mantendo apenas o último de cada usuário em Python
     seen = set()
     latest = []
     for row in result.data:
