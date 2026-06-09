@@ -5,6 +5,21 @@ import streamlit as st
 
 import database as db
 import scoring
+from datetime import datetime
+
+def formatar_data_hora(iso_string: str | None) -> str:
+    if not iso_string:
+        return "-"
+    try:
+        # Se a data vier com fuso horário (padrão do Supabase), removemos o 'Z' ou '+00:00' para ler mais fácil
+        clean_date = iso_string.split("+")[0].split(".")[0].replace("T", " ")
+        dt = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S")
+        
+        # Formato Amigável: Dia/Mês/Ano Hora:Minuto (Ex: 12/06/2026 15:30)
+        return dt.strftime("%d/%m às %H:%M")
+    except Exception:
+        # Caso a string já esteja em outro formato, retorna ela mesma para não quebrar a tela
+        return str(iso_string)
 
 st.set_page_config(page_title="Meus Palpites — Bolão 2k26", layout="wide")
 
@@ -48,7 +63,8 @@ with tab_games:
                 for game in games:
                     label = f"{game['team_home']} x {game['team_away']}"
                     if game.get("game_datetime"):
-                        label += f" — {game['game_datetime']}"
+                        data_amigavel = formatar_data_hora(game["game_datetime"])
+                        label += f" — {data_amigavel}"
                     if game.get("group_name"):
                         if "Grupo" in game["group_name"]:
                             label += f" ({game['group_name']})"
@@ -135,7 +151,7 @@ with tab_games:
                     "Resultado": result,
                     "Pontos": pts if p["finished"] else "-",
                     "Versão": p["version"],
-                    "Atualizado": p["updated_at"],
+                    "Atualizado": formatar_data_hora(p["updated_at"]),
                 }
             )
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
