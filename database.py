@@ -269,15 +269,21 @@ def save_prediction(user_id: int, game_id: int, home_score: int, away_score: int
         pred_id = result.data[0]["id"]
         version = 1
 
-    supabase.table("prediction_history").insert({
-        "prediction_id": pred_id,
-        "user_id": user_id,
-        "game_id": game_id,
-        "home_score": home_score,
-        "away_score": away_score,
-        "version": version,
-        "saved_at": ts
-    }).execute()
+    # --- BLINDAGEM CONTRA CLIQUE DUPLO NO HISTÓRICO ---
+    try:
+        supabase.table("prediction_history").insert({
+            "prediction_id": pred_id,
+            "user_id": user_id,
+            "game_id": game_id,
+            "home_score": home_score,
+            "away_score": away_score,
+            "version": version,
+            "saved_at": ts
+        }).execute()
+    except Exception:
+        # Se o clique duplo tentar inserir a mesma versão ao mesmo tempo,
+        # o Python ignora o erro e deixa o app seguir sem travar a tela do usuário!
+        pass
 
     return result.data[0]
 
