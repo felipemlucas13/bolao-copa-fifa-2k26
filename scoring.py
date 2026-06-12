@@ -372,7 +372,7 @@ def calculate_special_points(champion_pred: str | None, vice_pred: str | None, s
     return pc, pv, ps
 
 def user_statistics(user_id: int) -> dict:
-    """Calcula estatísticas isoladas de um usuário para a página de palpites."""
+    """Calcula estatísticas isoladas de um usuário para a página de palpites com chaves compatíveis."""
     stats_list = build_user_stats()
     
     # Encontra o objeto UserStats do usuário específico
@@ -382,13 +382,16 @@ def user_statistics(user_id: int) -> dict:
         return {
             "total_predictions": 0,
             "finished_predictions": 0,
-            "points": 0,
-            "exact_scores": 0
+            "exact_scores": 0,
+            "total_points": 0,
+            "correct_results": 0
         }
         
     return {
         "total_predictions": user_data.predictions_count,
-        "finished_predictions": user_data.exact_scores + user_data.correct_results + user_data.correct_diffs, # Aproximação dos finalizados com ponto
-        "points": user_data.total_points,
-        "exact_scores": user_data.exact_scores
+        # Considera como finalizados os palpites onde o jogo já rodou
+        "finished_predictions": user_data.exact_scores + user_data.correct_results + user_data.correct_diffs,
+        "exact_scores": user_data.exact_scores,
+        "total_points": user_data.total_points,
+        "correct_results": user_data.correct_results
     }
