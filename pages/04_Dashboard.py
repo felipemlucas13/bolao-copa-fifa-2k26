@@ -17,19 +17,27 @@ st.markdown("Destaques e estatísticas do bolão.")
 
 metrics = scoring.dashboard_metrics()
 
-# Se o dicionário vier completamente vazio por falta de usuários ativos
 if not metrics:
     st.info("Dashboard disponível após cadastro de participantes e palpites.")
     st.stop()
 
 leader = metrics.get("leader")
-best_phase = metrics.get("best_phase", {"phase": None, "user": None, "points": -1})
+best_phase = metrics.get("best_phase")
 exact_king = metrics.get("exact_king")
 hat_trick = metrics.get("hat_trick")
-climb = metrics.get("biggest_climb", {"user": None, "delta": 0})
 zebra = metrics.get("zebra_king")
 
-# --- LINHA SUPERIOR ---
+# Correção segura para ler a tupla/conjunto do climb sem quebrar a tela
+climb_data = metrics.get("biggest_climb", (None, 0))
+if isinstance(climb_data, tuple):
+    climb_user, climb_delta = climb_data
+else:
+    # Caso venha como set {None, 0} por causa do comportamento original
+    climb_list = list(climb_data)
+    climb_user = next((x for x in climb_list if isinstance(x, str)), None)
+    climb_delta = next((x for x in climb_list if isinstance(x, int)), 0)
+
+# Top row
 c1, c2, c3 = st.columns(3)
 
 with c1:
@@ -63,17 +71,17 @@ with c3:
             delta=f"{exact_king.total_points} pts totais",
         )
     else:
-        st.info("Nenhum placar exato ainda.")
+        st.info("Nenhum placar exato computado.")
 
 st.divider()
 
-# --- LINHA INFERIOR ---
+# Bottom row
 c4, c5, c6 = st.columns(3)
 
 with c4:
     st.markdown("### ⚡ Hat-Trick")
     st.caption("Mais sequências de 3+ placares exatos consecutivos")
-    if hat_trick and hat_trick.get("full_name"):
+    if hat_trick and isinstance(hat_trick, dict):
         st.metric(
             label=hat_trick["full_name"],
             value=f"{hat_trick['hat_tricks']} hat-tricks",
@@ -85,18 +93,18 @@ with c4:
 with c5:
     st.markdown("### 📈 Maior Escalada")
     st.caption("Maior subida no ranking (snapshots)")
-    if climb and climb.get("user") and climb.get("delta", 0) > 0:
+    if climb_user and climb_delta > 0:
         st.metric(
-            label=climb["user"],
-            value=f"+{climb['delta']} posições",
+            label=climb_user,
+            value=f"+{climb_delta} posições",
         )
     else:
-        st.info("Aguardando novas rodadas para computar variações de posições.")
+        st.info("Aguardando mais rodadas para computar variações de posições.")
 
 with c6:
     st.markdown("### 🦓 Rei das Zebras")
     st.caption("Mais pontos em acertos de resultados surpresa")
-    if zebra and zebra.get("full_name"):
+    if zebra and isinstance(zebra, dict):
         st.metric(
             label=zebra["full_name"],
             value=f"{zebra['zebra_points']} pts",
