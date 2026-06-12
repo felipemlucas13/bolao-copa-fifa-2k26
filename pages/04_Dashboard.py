@@ -117,7 +117,7 @@ st.subheader("Visão geral do ranking")
 df = scoring.ranking_dataframe()
 if not df.empty:
     top5 = df.head(5)
-    st.dataframe(top5, use_container_width=True, hide_index=True)
+    st.dataframe(top5, width="stretch", hide_index=True)
 
     st.subheader("Distribuição de pontos")
     chart_data = df.set_index("Participante")["Pontos Totais"]
