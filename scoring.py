@@ -149,11 +149,14 @@ def phase_ranking(phase_id: int) -> pd.DataFrame:
                 if p.get("result_home") is None or p.get("result_away") is None:
                     continue
                 cls = classify_prediction(p["home_score"], p["away_score"], p["result_home"], p["result_away"])
-                pts += cls["points"]
+                pts += int(cls["points"])
                 if cls["exact"]: exacts += 1
         rows.append({
-            "Participante": u["full_name"], "Usuário": u["username"],
-            "Pontos": pts, "Placares Exatos": exacts, "lottery": _lottery_value(uid, u["username"])
+            "Participante": str(u["full_name"]), 
+            "Usuário": str(u["username"]),
+            "Pontos": int(pts), # Sempre inteiro, nunca "-"
+            "Placares Exatos": int(exacts), 
+            "lottery": _lottery_value(uid, u["username"])
         })
     df = pd.DataFrame(rows)
     if not df.empty:
@@ -367,3 +370,25 @@ def calculate_special_points(champion_pred: str | None, vice_pred: str | None, s
             ps = 10
 
     return pc, pv, ps
+
+def user_statistics(user_id: int) -> dict:
+    """Calcula estatísticas isoladas de um usuário para a página de palpites."""
+    stats_list = build_user_stats()
+    
+    # Encontra o objeto UserStats do usuário específico
+    user_data = next((s for s in stats_list if s.user_id == user_id), None)
+    
+    if not user_data:
+        return {
+            "total_predictions": 0,
+            "finished_predictions": 0,
+            "points": 0,
+            "exact_scores": 0
+        }
+        
+    return {
+        "total_predictions": user_data.predictions_count,
+        "finished_predictions": user_data.exact_scores + user_data.correct_results + user_data.correct_diffs, # Aproximação dos finalizados com ponto
+        "points": user_data.total_points,
+        "exact_scores": user_data.exact_scores
+    }
