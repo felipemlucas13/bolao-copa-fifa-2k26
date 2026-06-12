@@ -342,3 +342,23 @@ def _find_zebra_kings_mem(palpites_por_usuario: dict) -> tuple[list[str], int]:
 
     winners = [u["name"] for u in user_zebras if u["pts"] == max_z_pts] if max_z_pts > 0 else []
     return winners, max_z_pts
+    
+def calculate_special_points(user_id: int) -> tuple[int, int, int]:
+    """Calcula os pontos especiais para a página de palpites.
+    
+    Retorna uma tupla contendo: (pontos_campeao, pontos_vice, pontos_artilheiro)
+    """
+    try:
+        sp = db.get_special_prediction(user_id)
+        settings = db.get_tournament_settings()
+    except Exception:
+        return 0, 0, 0
+
+    if not sp or not settings:
+        return 0, 0, 0
+
+    pc = int(sp.get("points_champion", 0))
+    pv = int(sp.get("points_vice", 0))
+    ps = int(sp.get("points_scorer", 0))
+
+    return pc, pv, ps
