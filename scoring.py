@@ -343,22 +343,27 @@ def _find_zebra_kings_mem(palpites_por_usuario: dict) -> tuple[list[str], int]:
     winners = [u["name"] for u in user_zebras if u["pts"] == max_z_pts] if max_z_pts > 0 else []
     return winners, max_z_pts
     
-def calculate_special_points(user_id: int) -> tuple[int, int, int]:
-    """Calcula os pontos especiais para a página de palpites.
+def calculate_special_points(champion_pred: str | None, vice_pred: str | None, scorer_pred: str | None, settings: dict | None) -> tuple[int, int, int]:
+    """Calcula os pontos dos palpites especiais baseado nas escolhas do usuário e configurações atuais."""
+    pc, pv, ps = 0, 0, 0
     
-    Retorna uma tupla contendo: (pontos_campeao, pontos_vice, pontos_artilheiro)
-    """
-    try:
-        sp = db.get_special_prediction(user_id)
-        settings = db.get_tournament_settings()
-    except Exception:
-        return 0, 0, 0
+    if not settings:
+        return pc, pv, ps
 
-    if not sp or not settings:
-        return 0, 0, 0
+    # 1. Validação do Campeão
+    if champion_pred and settings.get("champion_team"):
+        if str(champion_pred).strip().lower() == str(settings["champion_team"]).strip().lower():
+            # Altere o valor da pontuação (ex: 10, 15, etc) conforme a regra do seu bolão
+            pc = 10 
 
-    pc = int(sp.get("points_champion", 0))
-    pv = int(sp.get("points_vice", 0))
-    ps = int(sp.get("points_scorer", 0))
+    # 2. Validação do Vice
+    if vice_pred and settings.get("vice_team"):
+        if str(vice_pred).strip().lower() == str(settings["vice_team"]).strip().lower():
+            pv = 10
+
+    # 3. Validação do Artilheiro
+    if scorer_pred and settings.get("top_scorer"):
+        if str(scorer_pred).strip().lower() == str(settings["top_scorer"]).strip().lower():
+            ps = 10
 
     return pc, pv, ps
