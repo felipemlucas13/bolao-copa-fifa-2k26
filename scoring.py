@@ -351,7 +351,7 @@ def dashboard_metrics() -> dict:
 
     phases = db.list_phases()
     best_phase = None
-    best_phase_user = None
+    best_phase_users = None
     best_phase_pts = -1
     for phase in phases:
         df = phase_ranking(phase["id"])
@@ -359,7 +359,7 @@ def dashboard_metrics() -> dict:
             top = df.iloc[0]
             if top["Pontos"] > best_phase_pts:
                 best_phase_pts = top["Pontos"]
-                best_phase_user = top["Participante"]
+                best_phase_users = top["Participante"]
                 best_phase = phase["name"]
 
     exact_king = max(stats, key=lambda s: (s.exact_scores, s.total_points))
