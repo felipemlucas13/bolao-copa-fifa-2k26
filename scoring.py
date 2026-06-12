@@ -372,7 +372,7 @@ def dashboard_metrics() -> dict:
 
     return {
         "leader": leader,
-        "best_phase": {"phase": best_phase, "user": best_phase_user, "points": best_phase_pts},
+        "best_phase": {"phase": best_phase, "user": best_phase_users, "points": best_phase_pts},
         "exact_king": exact_king,
         "hat_trick": hat_trick_user,
         "biggest_climb": {"user": climb_user, "delta": climb_delta},
