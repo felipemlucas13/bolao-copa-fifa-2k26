@@ -371,8 +371,12 @@ def calculate_special_points(champion_pred: str | None, vice_pred: str | None, s
 
     return pc, pv, ps
 
+def can_view_all_predictions(status: str) -> bool:
+    """Retorna True se a fase já foi fechada ou finalizada, permitindo auditoria dos outros."""
+    return status in ["Fechada", "Finalizada"]
+
 def user_statistics(user_id: int) -> dict:
-    """Calcula estatísticas isoladas de um usuário para a página de palpites com chaves compatíveis."""
+    """Calcula estatísticas detalhadas de um usuário para a página de palpites."""
     stats_list = build_user_stats()
     
     # Encontra o objeto UserStats do usuário específico
@@ -384,14 +388,35 @@ def user_statistics(user_id: int) -> dict:
             "finished_predictions": 0,
             "exact_scores": 0,
             "total_points": 0,
-            "correct_results": 0
+            "correct_results": 0,
+            "by_phase": {}
         }
         
+    # Inicializa estrutura de dados por fase de forma segura para o Pandas/PyArrow
+    by_phase_data = {}
+    try:
+        # Busca todas as fases cadastradas
+        for phase in db.list_phases():
+            df_p = phase_ranking(phase["id"])
+            if not df_p.empty:
+                # Localiza a linha do participante no ranking da fase
+                user_row = df_p[df_p["Participante"] == user_data.full_name]
+                if not user_row.empty:
+                    row = user_row.iloc[0]
+                    by_phase_data[phase["name"]] = {
+                        "palpites": int(user_data.predictions_count), # Valor total aproximado
+                        "pontos": int(row.get("Pontos", 0)),          # Garante tipo numérico inteiro
+                        "exatos": int(row.get("Placares Exatos", 0)), # Garante tipo numérico inteiro
+                        "corretos": 0 # Pode deixar zerado ou mapear se tiver a coluna
+                    }
+    except Exception:
+        pass
+
     return {
-        "total_predictions": user_data.predictions_count,
-        # Considera como finalizados os palpites onde o jogo já rodou
-        "finished_predictions": user_data.exact_scores + user_data.correct_results + user_data.correct_diffs,
-        "exact_scores": user_data.exact_scores,
-        "total_points": user_data.total_points,
-        "correct_results": user_data.correct_results
+        "total_predictions": int(user_data.predictions_count),
+        "finished_predictions": int(user_data.exact_scores + user_data.correct_results + user_data.correct_diffs),
+        "exact_scores": int(user_data.exact_scores),
+        "total_points": int(user_data.total_points),
+        "correct_results": int(user_data.correct_results),
+        "by_phase": by_phase_data
     }
