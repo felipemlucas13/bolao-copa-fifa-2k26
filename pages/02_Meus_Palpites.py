@@ -379,17 +379,30 @@ with tab_all:
             rows = []
             for p in all_preds:
                 result = "-"
+                pts = "-"
+                
                 if p["finished"]:
                     result = f"{p['result_home']} x {p['result_away']}"
+                    # Calcula na hora os pontos reais com base no resultado atualizado
+                    if p.get("result_home") is not None and p.get("result_away") is not None:
+                        cls = scoring.classify_prediction(
+                            p["home_score"], p["away_score"], 
+                            p["result_home"], p["result_away"]
+                        )
+                        pts = cls["points"]
+                    else:
+                        pts = 0
+
                 rows.append(
                     {
                         "Participante": p["full_name"],
                         "Jogo": f"{p['team_home']} x {p['team_away']}",
                         "Palpite": f"{p['home_score']} x {p['away_score']}",
                         "Resultado": result,
-                        "Pontos": p["points"] if p["finished"] else "-",
+                        "Pontos": pts,
                     }
                 )
+
             # FIX DA LINHA 412: Trocado 'phase_rows' por 'rows' para carregar a tabela correta
             st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
         else:
