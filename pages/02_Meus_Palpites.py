@@ -203,24 +203,39 @@ with tab_games:
         phase_id = next(p["id"] for p in phases if p["name"] == filter_phase)
 
     my_preds = db.get_user_predictions(user_id, phase_id)
+    #---
+    my_preds = db.get_user_predictions(user_id, phase_id)
     if my_preds:
         rows = []
         for p in my_preds:
             result = "-"
-            pts = p["points"]
+            pts = "-"
+            
             if p["finished"]:
                 result = f"{p['result_home']} x {p['result_away']}"
+                # Calcula em tempo real usando as regras oficiais do scoring.py
+                if p.get("result_home") is not None and p.get("result_away") is not None:
+                    cls = scoring.classify_prediction(
+                        p["home_score"], p["away_score"], 
+                        p["result_home"], p["result_away"]
+                    )
+                    pts = cls["points"]
+                else:
+                    pts = 0
+
             rows.append(
                 {
                     "Fase": p["phase_name"],
                     "Jogo": f"{p['team_home']} x {p['team_away']}",
                     "Palpite": f"{p['home_score']} x {p['away_score']}",
                     "Resultado": result,
-                    "Pontos": pts if p["finished"] else "-",
+                    "Pontos": pts,
                     "Versão": p["version"],
                     "Atualizado": formatar_data_hora(p["updated_at"]),
                 }
             )
+    
+    #---
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
         
         pdf_data = gerar_pdf_palpites(my_preds, user["full_name"])
