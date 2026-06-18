@@ -6,7 +6,7 @@ import streamlit as st
 import database as db
 import scoring
 
-# --- TODOS OS IMPORTS DO PDF E DATETIME GARANTIDOS NO TOPO ---
+# --- IMPORTS DO PDF E DATETIME ---
 import io
 from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import letter
@@ -22,7 +22,7 @@ def formatar_data_hora(iso_string: str | None) -> str:
         dt = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S")
         dias_ptbr = {0: "Seg", 1: "Ter", 2: "Qua", 3: "Qui", 4: "Sex", 5: "Sáb", 6: "Dom"}
         dia_semana = dias_ptbr[dt.weekday()]
-        return f"{dia_semana}, {dt.strftime('%d/%m %H:%M')}"
+        return dt.strftime('%Y/%m/%d %H:%M') + f" ({dia_semana})"
     except Exception:
         return str(iso_string)
 
@@ -55,7 +55,7 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
     story.append(Paragraph(f"Participante: {full_name} · Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_subtitle))
     story.append(Spacer(1, 10))
 
-    # Tabela com nova coluna Horário integrada
+    # Tabela com nova coluna Horário integrada no PDF
     table_data = [[
         Paragraph("Fase", style_header), 
         Paragraph("Horário", style_header), 
@@ -231,9 +231,13 @@ with tab_games:
                 else:
                     pts = 0
 
+            # ADICIONADO: Puxa o horário no formato YYYY/MM/DD para a sua tabela de palpites
+            horario_formatado = formatar_data_hora(p.get("game_datetime"))
+
             rows.append(
                 {
                     "Fase": p["phase_name"],
+                    "Horário Jogo": horario_formatado,  # <--- Nova coluna adicionada aqui!
                     "Jogo": f"{p['team_home']} x {p['team_away']}",
                     "Palpite": f"{p['home_score']} x {p['away_score']}",
                     "Resultado": result,
@@ -246,6 +250,9 @@ with tab_games:
         df_meus_palpites = pd.DataFrame(rows)
         if not df_meus_palpites.empty:
             df_meus_palpites["Pontos"] = df_meus_palpites["Pontos"].astype(str)
+            # Pré-ordena por Horário Jogo de forma cronológica perfeita
+            if "Horário Jogo" in df_meus_palpites.columns:
+                df_meus_palpites = df_meus_palpites.sort_values(by="Horário Jogo").reset_index(drop=True)
             
         st.dataframe(df_meus_palpites, width="stretch", hide_index=True)
         
@@ -427,7 +434,6 @@ with tab_all:
                         elif fuso_selecionado == "Dallas":
                             dt = dt - timedelta(hours=2)
                         
-                        # FORMATO CRONOLÓGICO SEGURO PARA ORDENAÇÃO CORRETA ALFABÉTICA
                         dias_ptbr = {0: "Seg", 1: "Ter", 2: "Qua", 3: "Qui", 4: "Sex", 5: "Sáb", 6: "Dom"}
                         dia_semana = dias_ptbr[dt.weekday()]
                         data_convertida = dt.strftime('%Y/%m/%d %H:%M') + f" ({dia_semana})"
