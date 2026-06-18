@@ -26,7 +26,7 @@ def formatar_data_hora(iso_string: str | None) -> str:
         return str(iso_string)
 
 def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
-    """Gera um PDF em memória com os palpites do usuário."""
+    """Gera um PDF em memória com os palpites do usuário incluindo os horários (Rio de Janeiro)."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, 
@@ -44,18 +44,20 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
         'SubTitleStyle', parent=styles['Normal'], 
         textColor=colors.HexColor("#4B5563"), fontSize=12, spaceAfter=20
     )
-    style_cell = ParagraphStyle('CellStyle', parent=styles['Normal'], fontSize=10)
+    style_cell = ParagraphStyle('CellStyle', parent=styles['Normal'], fontSize=9)
     style_header = ParagraphStyle(
         'HeaderStyle', parent=styles['Normal'], 
-        textColor=colors.white, fontSize=11, fontName="Helvetica-Bold"
+        textColor=colors.white, fontSize=10, fontName="Helvetica-Bold"
     )
 
     story.append(Paragraph("🎯 Meus Palpites — Bolão Copa FIFA 2k26", style_title))
     story.append(Paragraph(f"Participante: {full_name} · Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_subtitle))
     story.append(Spacer(1, 10))
 
+    # 1. Adicionamos a coluna "Horário" no cabeçalho da tabela do PDF
     table_data = [[
         Paragraph("Fase", style_header), 
+        Paragraph("Horário", style_header), 
         Paragraph("Jogo", style_header), 
         Paragraph("Palpite", style_header), 
         Paragraph("Resultado", style_header), 
@@ -66,15 +68,20 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
     for p in my_preds:
         res = f"{p['result_home']} x {p['result_away']}" if p["finished"] else "-"
         
-        # Cálculo dinâmico para o PDF também ficar correto
+        # Cálculo dinâmico para o PDF computar os pontos certinho
         if p["finished"] and p.get("result_home") is not None and p.get("result_away") is not None:
             cls = scoring.classify_prediction(p["home_score"], p["away_score"], p["result_home"], p["result_away"])
             pts = str(cls["points"])
         else:
             pts = "-"
+            
+        # Puxa o horário formatado da função amigável (que já usa o padrão do Rio de Janeiro vindo do banco)
+        horario_jogo = formatar_data_hora(p.get("game_datetime"))
         
+        # 2. Insere a nova célula de horário na linha correspondente
         table_data.append([
             Paragraph(p["phase_name"], style_cell),
+            Paragraph(horario_jogo, style_cell),
             Paragraph(f"{p['team_home']} x {p['team_away']}", style_cell),
             Paragraph(f"{p['home_score']} x {p['away_score']}", style_cell),
             Paragraph(res, style_cell),
@@ -82,7 +89,9 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
             Paragraph(str(p["version"]), style_cell)
         ])
 
-    t = Table(table_data, colWidths=[90, 180, 70, 70, 50, 30])
+    # 3. Ajustamos as larguras das colunas (colWidths) para abrir espaço para o horário
+    # Total da largura útil da página 'letter' com margem 30 é 552 pontos.
+    t = Table(table_data, colWidths=[80, 95, 147, 65, 65, 50, 50])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1E3A8A")), 
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -100,27 +109,6 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
     
     buffer.seek(0)
     return buffer.getvalue()
-
-st.set_page_config(page_title="Meus Palpites — Bolão 2k26", layout="wide")
-
-db.init_db()
-
-if "user" not in st.session_state or st.session_state.user is None:
-    st.warning("Faça login na página principal.")
-    st.stop()
-
-user = st.session_state.user
-user_id = user["id"]
-
-st.title("🎯 Meus Palpites")
-st.caption(f"{user['full_name']} (@{user['username']})")
-
-tab_games, tab_special, tab_stats, tab_audit, tab_all = st.tabs(
-    ["Palpites de Jogos", "Palpites Especiais", "Minhas Estatísticas", "Auditoria", "Palpites dos Outros"]
-)
-
-phases = db.list_phases()
-open_phases = [p for p in phases if p["status"] == "Aberta"]
 
 # --- Game predictions ---
 with tab_games:
