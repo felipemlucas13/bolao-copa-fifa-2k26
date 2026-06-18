@@ -5,9 +5,10 @@ import streamlit as st
 
 import database as db
 import scoring
-# --- NOVOS IMPORTS E FUNÇÃO DO PDF (ADICIONAR NO TOPO) ---
+
+# --- TODOS OS IMPORTS DO PDF E DATETIME GARANTIDOS NO TOPO ---
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -54,7 +55,7 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
     story.append(Paragraph(f"Participante: {full_name} · Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_subtitle))
     story.append(Spacer(1, 10))
 
-    # 1. Adicionamos a coluna "Horário" no cabeçalho da tabela do PDF
+    # Tabela com nova coluna Horário integrada
     table_data = [[
         Paragraph("Fase", style_header), 
         Paragraph("Horário", style_header), 
@@ -68,17 +69,14 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
     for p in my_preds:
         res = f"{p['result_home']} x {p['result_away']}" if p["finished"] else "-"
         
-        # Cálculo dinâmico para o PDF computar os pontos certinho
         if p["finished"] and p.get("result_home") is not None and p.get("result_away") is not None:
             cls = scoring.classify_prediction(p["home_score"], p["away_score"], p["result_home"], p["result_away"])
             pts = str(cls["points"])
         else:
             pts = "-"
             
-        # Puxa o horário formatado da função amigável (que já usa o padrão do Rio de Janeiro vindo do banco)
         horario_jogo = formatar_data_hora(p.get("game_datetime"))
         
-        # 2. Insere a nova célula de horário na linha correspondente
         table_data.append([
             Paragraph(p["phase_name"], style_cell),
             Paragraph(horario_jogo, style_cell),
@@ -89,8 +87,6 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
             Paragraph(str(p["version"]), style_cell)
         ])
 
-    # 3. Ajustamos as larguras das colunas (colWidths) para abrir espaço para o horário
-    # Total da largura útil da página 'letter' com margem 30 é 552 pontos.
     t = Table(table_data, colWidths=[80, 95, 147, 65, 65, 50, 50])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1E3A8A")), 
@@ -109,6 +105,27 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
     
     buffer.seek(0)
     return buffer.getvalue()
+
+st.set_page_config(page_title="Meus Palpites — Bolão 2k26", layout="wide")
+
+db.init_db()
+
+if "user" not in st.session_state or st.session_state.user is None:
+    st.warning("Faça login na página principal.")
+    st.stop()
+
+user = st.session_state.user
+user_id = user["id"]
+
+st.title("🎯 Meus Palpites")
+st.caption(f"{user['full_name']} (@{user['username']})")
+
+tab_games, tab_special, tab_stats, tab_audit, tab_all = st.tabs(
+    ["Palpites de Jogos", "Palpites Especiais", "Minhas Estatísticas", "Auditoria", "Palpites dos Outros"]
+)
+
+phases = db.list_phases()
+open_phases = [p for p in phases if p["status"] == "Aberta"]
 
 # --- Game predictions ---
 with tab_games:
@@ -205,7 +222,6 @@ with tab_games:
             
             if p["finished"]:
                 result = f"{p['result_home']} x {p['result_away']}"
-                # FIX REAL-TIME: Calcula direto do scoring.py em vez de usar a coluna estática errada do banco
                 if p.get("result_home") is not None and p.get("result_away") is not None:
                     cls = scoring.classify_prediction(
                         p["home_score"], p["away_score"], 
@@ -227,7 +243,6 @@ with tab_games:
                 }
             )
         
-        # FIX ARROW DEFINITIVO: Converte a coluna "Pontos" explicitamente para string antes de renderizar
         df_meus_palpites = pd.DataFrame(rows)
         if not df_meus_palpites.empty:
             df_meus_palpites["Pontos"] = df_meus_palpites["Pontos"].astype(str)
@@ -254,14 +269,11 @@ with tab_special:
     )
 
     sp = db.get_special_prediction(user_id)
-
-    from datetime import datetime
-    data_limite = datetime(2026, 6, 18, 23, 0, 0)
+    data_limite = datetime(2026, 6, 12, 20, 0, 0)
     agora = datetime.now()
 
     if agora > data_limite:
         st.warning("🔒 Os palpites especiais estão trancados porque a Copa já começou!")
-        
         with st.form("special_preds_locked"):
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -270,27 +282,16 @@ with tab_special:
                 st.text_input("Vice-campeão", value=sp["vice"] if sp and sp.get("vice") else "", disabled=True)
             with c3:
                 st.text_input("Artilheiro", value=sp["top_scorer"] if sp and sp.get("top_scorer") else "", disabled=True)
-            
             st.form_submit_button("Prazo encerrado", disabled=True)
-
     else:
         with st.form("special_preds"):
             c1, c2, c3 = st.columns(3)
             with c1:
-                champion = st.text_input(
-                    "Campeão",
-                    value=sp["champion"] if sp and sp.get("champion") else "",
-                )
+                champion = st.text_input("Campeão", value=sp["champion"] if sp and sp.get("champion") else "")
             with c2:
-                vice = st.text_input(
-                    "Vice-campeão",
-                    value=sp["vice"] if sp and sp.get("vice") else "",
-                )
+                vice = st.text_input("Vice-campeão", value=sp["vice"] if sp and sp.get("vice") else "")
             with c3:
-                scorer = st.text_input(
-                    "Artilheiro",
-                    value=sp["top_scorer"] if sp and sp.get("top_scorer") else "",
-                )
+                scorer = st.text_input("Artilheiro", value=sp["top_scorer"] if sp and sp.get("top_scorer") else "")
             if st.form_submit_button("Salvar palpites especiais", type="primary"):
                 db.save_special_prediction(user_id, champion, vice, scorer)
                 st.success("Palpites especiais salvos (versão registrada no histórico).")
@@ -317,7 +318,7 @@ with tab_stats:
     c4.metric("Pontos totais", stats["total_points"])
 
     c5, c6 = st.columns(2)
-    c5.metric("Resultados corretos", stats["correct_results"])
+    c6.metric("Resultados corretos", stats["correct_results"])
 
     if stats["by_phase"]:
         st.subheader("Desempenho por fase")
@@ -387,6 +388,15 @@ with tab_all:
         all_preds = db.get_all_predictions(phase_id)
 
         if all_preds:
+            st.markdown("🌐 **Ajustar fuso horário da tabela:**")
+            fuso_selecionado = st.radio(
+                "Escolha o fuso horário para exibição das datas dos jogos:",
+                options=["Rio de Janeiro", "Perth", "Dallas"],
+                horizontal=True,
+                label_visibility="collapsed",
+                key="fuso_selector"
+            )
+
             rows = []
             for p in all_preds:
                 result = "-"
@@ -403,20 +413,44 @@ with tab_all:
                     else:
                         pts = 0
 
+                game_data = p.get("games") or {}
+                data_original = game_data.get("game_datetime")
+                data_convertida = "-"
+                
+                if data_original:
+                    try:
+                        clean_date = str(data_original).split("+")[0].split(".")[0].replace("T", " ")
+                        dt = datetime.strptime(clean_date, "%Y-%m-%d %H:%M:%S")
+                        
+                        if fuso_selecionado == "Perth":
+                            dt = dt + timedelta(hours=11)
+                        elif fuso_selecionado == "Dallas":
+                            dt = dt - timedelta(hours=2)
+                        
+                        # FORMATO CRONOLÓGICO SEGURO PARA ORDENAÇÃO CORRETA ALFABÉTICA
+                        dias_ptbr = {0: "Seg", 1: "Ter", 2: "Qua", 3: "Qui", 4: "Sex", 5: "Sáb", 6: "Dom"}
+                        dia_semana = dias_ptbr[dt.weekday()]
+                        data_convertida = dt.strftime('%Y/%m/%d %H:%M') + f" ({dia_semana})"
+                    except Exception:
+                        data_convertida = formatar_data_hora(data_original)
+
                 rows.append(
                     {
-                        "Participante": p["full_name"],
-                        "Jogo": f"{p['team_home']} x {p['team_away']}",
-                        "Palpite": f"{p['home_score']} x {p['away_score']}",
+                        "ID Jogo": p.get("game_id") or game_data.get("id") or "-",
+                        "Horário Jogo": data_convertida,
+                        "Participante": p.get("full_name", "-"),
+                        "Jogo": f"{p.get('team_home', '')} x {p.get('team_away', '')}",
+                        "Palpite": f"{p.get('home_score', 0)} x {p.get('away_score', 0)}",
                         "Resultado": result,
                         "Pontos": pts,
                     }
                 )
 
-            # Converte para string também na aba dos outros para total segurança contra misturas de tipos
             df_outros = pd.DataFrame(rows)
             if not df_outros.empty:
                 df_outros["Pontos"] = df_outros["Pontos"].astype(str)
+                if "ID Jogo" in df_outros.columns:
+                    df_outros = df_outros.sort_values(by=["ID Jogo", "Participante"]).reset_index(drop=True)
 
             st.dataframe(df_outros, width="stretch", hide_index=True)
         else:
