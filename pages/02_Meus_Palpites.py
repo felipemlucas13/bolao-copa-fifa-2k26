@@ -276,7 +276,7 @@ with tab_special:
     )
 
     sp = db.get_special_prediction(user_id)
-    data_limite = datetime(2026, 6, 12, 20, 0, 0)
+    data_limite = datetime(2026, 6, 19, 06, 0, 0)
     agora = datetime.now()
 
     if agora > data_limite:
@@ -398,7 +398,7 @@ with tab_all:
             st.markdown("🌐 **Ajustar fuso horário da tabela:**")
             fuso_selecionado = st.radio(
                 "Escolha o fuso horário para exibição das datas dos jogos:",
-                options=["Rio de Janeiro", "Perth", "Dallas"],
+                options=["Rio de Janeiro", "Perth", "NY"],
                 horizontal=True,
                 label_visibility="collapsed",
                 key="fuso_selector"
@@ -431,8 +431,8 @@ with tab_all:
                         
                         if fuso_selecionado == "Perth":
                             dt = dt + timedelta(hours=11)
-                        elif fuso_selecionado == "Dallas":
-                            dt = dt - timedelta(hours=2)
+                        elif fuso_selecionado == "NY":
+                            dt = dt - timedelta(hours=1)
                         
                         dias_ptbr = {0: "Seg", 1: "Ter", 2: "Qua", 3: "Qui", 4: "Sex", 5: "Sáb", 6: "Dom"}
                         dia_semana = dias_ptbr[dt.weekday()]
