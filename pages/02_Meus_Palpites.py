@@ -268,7 +268,7 @@ with tab_special:
     sp = db.get_special_prediction(user_id)
 
     from datetime import datetime
-    data_limite = datetime(2026, 6, 18, 10, 0, 0)
+    data_limite = datetime(2026, 6, 18, 23, 0, 0)
     agora = datetime.now()
 
     if agora > data_limite:
