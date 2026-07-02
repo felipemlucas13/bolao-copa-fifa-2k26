@@ -139,7 +139,21 @@ with tab_games:
             with st.form(f"predictions_{phase['id']}"):
                 predictions_input = {}
                 for game in games:
-                    label = f"{game['team_home']} x {game['team_away']}"
+                    # Puxa os links salvos no banco. Se não tiver, define uma imagem padrão ou vazia.
+                    url_casa = game.get("flag_home") or ""
+                    url_fora = game.get("flag_away") or ""
+                    
+                    # Monta o visual com a tag <img> do HTML para colar a bandeira grudada no nome
+                    label = f'<img src="{url_casa}" width="20"> {game["team_home"]} x <img src="{url_fora}" width="20"> {game["team_away"]}'
+                    
+                    if game.get("game_datetime"):
+                        data_amigavel = formatar_data_hora(game["game_datetime"])
+                        label += f" — {data_amigavel}"
+                    
+                    c1, c2, c3 = st.columns([3, 1, 1])
+                    
+                    # Mudamos de c1.markdown() para c1.write() com a propriedade de HTML ativada:
+                    c1.write(label, unsafe_allow_html=True)
                     if game.get("game_datetime"):
                         data_amigavel = formatar_data_hora(game["game_datetime"])
                         label += f" — {data_amigavel}"
