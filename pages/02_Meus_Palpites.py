@@ -139,7 +139,7 @@ with tab_games:
             with st.form(f"predictions_{phase['id']}"):
                 predictions_input = {}
                 for game in games:
-                    # 1. Resgata as URLs do banco de dados
+                    # 1. Resgata as URLs das bandeiras do banco de dados
                     url_casa = game.get("flag_home") or ""
                     url_fora = game.get("flag_away") or ""
                     
@@ -147,39 +147,31 @@ with tab_games:
                     img_casa = f'<img src="{url_casa}" width="24" style="vertical-align: middle; margin-left: 6px; margin-right: 6px;">' if url_casa else ""
                     img_fora = f'<img src="{url_fora}" width="24" style="vertical-align: middle; margin-left: 6px; margin-right: 6px;">' if url_fora else ""
                     
-                    # 3. Monta o layout na ordem exata solicitada: Time A [Flag A] x [Flag B] Time B
-                    label = f"{game['team_home']}{img_casa} x {img_fora}{game['team_away']}"
+                    # 3. Monta o layout na ordem exata: Time A [Flag A] x [Flag B] Time B
+                    label_confronto = f"{game['team_home']}{img_casa} x {img_fora}{game['team_away']}"
                     
-                    # 4. Adiciona o horário (uma única vez)
+                    # 4. Adiciona as informações extras (Data / Grupo) sem duplicar
+                    detalhes = []
                     if game.get("game_datetime"):
-                        data_amigavel = formatar_data_hora(game["game_datetime"])
-                        label += f" — {data_amigavel}"
-                        
-                    # 5. Adiciona o nome do grupo se houver
+                        detalhes.append(formatar_data_hora(game["game_datetime"]))
                     if game.get("group_name"):
                         if "Grupo" in game["group_name"]:
-                            label += f" ({game['group_name']})"
+                            detalhes.append(game["group_name"])
                         else:
-                            label += f" (Grupo {game['group_name']})"
-            
-                    ex = existing.get(game["id"])
-                    c1, c2, c3 = st.columns([3, 1, 1])
-                    
-                    # Renderiza o HTML limpo e seguro
-                    c1.write(label, unsafe_allow_html=True)
-                    
-                    if game.get("game_datetime"):
-                        data_amigavel = formatar_data_hora(game["game_datetime"])
-                        label += f" — {data_amigavel}"
-                    if game.get("group_name"):
-                        if "Grupo" in game["group_name"]:
-                            label += f" ({game['group_name']})"
-                        else:
-                            label += f" (Grupo {game['group_name']})"
+                            detalhes.append(f"Grupo {game['group_name']}")
+                            
+                    # Se houver data ou grupo, junta com um travessão simples
+                    if detalhes:
+                        texto_final = f"{label_confronto} — {' — '.join(detalhes)}"
+                    else:
+                        texto_final = label_confronto
 
                     ex = existing.get(game["id"])
                     c1, c2, c3 = st.columns([3, 1, 1])
-                    c1.markdown(f"**{label}**")
+                    
+                    # 5. CORREÇÃO CRÍTICA: st.markdown com unsafe_allow_html=True renderiza as tags HTML perfeitamente
+                    c1.markdown(f'<div style="font-size: 16px; font-weight: bold; line-height: 24px;">{texto_final}</div>', unsafe_allow_html=True)
+                    
                     default_home = ex["home_score"] if ex else 0
                     default_away = ex["away_score"] if ex else 0
                     predictions_input[game["id"]] = (
