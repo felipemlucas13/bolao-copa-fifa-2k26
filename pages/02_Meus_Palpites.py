@@ -139,21 +139,35 @@ with tab_games:
             with st.form(f"predictions_{phase['id']}"):
                 predictions_input = {}
                 for game in games:
-                    # Puxa os links salvos no banco. Se não tiver, define uma imagem padrão ou vazia.
+                    # 1. Resgata as URLs do banco de dados
                     url_casa = game.get("flag_home") or ""
                     url_fora = game.get("flag_away") or ""
                     
-                    # Monta o visual com a tag <img> do HTML para colar a bandeira grudada no nome
-                    label = f'<img src="{url_casa}" width="20"> {game["team_home"]} x <img src="{url_fora}" width="20"> {game["team_away"]}'
+                    # 2. Cria as tags HTML de imagem APENAS se a URL existir no banco
+                    img_casa = f'<img src="{url_casa}" width="24" style="vertical-align: middle; margin-left: 6px; margin-right: 6px;">' if url_casa else ""
+                    img_fora = f'<img src="{url_fora}" width="24" style="vertical-align: middle; margin-left: 6px; margin-right: 6px;">' if url_fora else ""
                     
+                    # 3. Monta o layout na ordem exata solicitada: Time A [Flag A] x [Flag B] Time B
+                    label = f"{game['team_home']}{img_casa} x {img_fora}{game['team_away']}"
+                    
+                    # 4. Adiciona o horário (uma única vez)
                     if game.get("game_datetime"):
                         data_amigavel = formatar_data_hora(game["game_datetime"])
                         label += f" — {data_amigavel}"
-                    
+                        
+                    # 5. Adiciona o nome do grupo se houver
+                    if game.get("group_name"):
+                        if "Grupo" in game["group_name"]:
+                            label += f" ({game['group_name']})"
+                        else:
+                            label += f" (Grupo {game['group_name']})"
+            
+                    ex = existing.get(game["id"])
                     c1, c2, c3 = st.columns([3, 1, 1])
                     
-                    # Mudamos de c1.markdown() para c1.write() com a propriedade de HTML ativada:
+                    # Renderiza o HTML limpo e seguro
                     c1.write(label, unsafe_allow_html=True)
+                    
                     if game.get("game_datetime"):
                         data_amigavel = formatar_data_hora(game["game_datetime"])
                         label += f" — {data_amigavel}"
