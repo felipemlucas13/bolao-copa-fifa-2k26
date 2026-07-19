@@ -98,7 +98,6 @@ def gerar_pdf_palpites(my_preds: list, full_name: str) -> bytes:
             f"{p['result_home']} x {p['result_away']}" if p["finished"] else "-"
         )
 
-        # Cálculo dinâmico para o PDF também ficar correto
         if (
             p["finished"]
             and p.get("result_home") is not None
@@ -201,11 +200,9 @@ with tab_games:
             with st.form(f"predictions_{phase['id']}"):
                 predictions_input = {}
                 for game in games:
-                    # 1. Resgata as URLs das bandeiras do banco de dados
                     url_casa = game.get("flag_home") or ""
                     url_fora = game.get("flag_away") or ""
 
-                    # 2. Cria as tags HTML de imagem APENAS se a URL existir no banco
                     img_casa = (
                         f'<img src="{url_casa}" width="24" style="vertical-align: middle; margin-left: 6px; margin-right: 6px;">'
                         if url_casa
@@ -217,10 +214,8 @@ with tab_games:
                         else ""
                     )
 
-                    # 3. Monta o layout na ordem exata: Time A [Flag A] x [Flag B] Time B
                     label_confronto = f"{game['team_home']}{img_casa} x {img_fora}{game['team_away']}"
 
-                    # 4. Adiciona as informações extras (Data / Grupo) sem duplicar
                     detalhes = []
                     if game.get("game_datetime"):
                         detalhes.append(
@@ -232,7 +227,6 @@ with tab_games:
                         else:
                             detalhes.append(f"Grupo {game['group_name']}")
 
-                    # Se houver data ou grupo, junta com um travessão simples
                     if detalhes:
                         texto_final = f"{label_confronto} — {' — '.join(detalhes)}"
                     else:
@@ -241,7 +235,6 @@ with tab_games:
                     ex = existing.get(game["id"])
                     c1, c2, c3 = st.columns([3, 1, 1])
 
-                    # 5. Renderização em HTML para exibir a bandeira gráfica
                     c1.markdown(
                         f'<div style="font-size: 16px; font-weight: bold; line-height: 24px;">{texto_final}</div>',
                         unsafe_allow_html=True,
@@ -344,7 +337,7 @@ with tab_games:
         if not df_meus_palpites.empty:
             df_meus_palpites["Pontos"] = df_meus_palpites["Pontos"].astype(str)
 
-        st.dataframe(df_meus_palpites, width="stretch", hide_index=True)
+        st.dataframe(df_meus_palpites, use_container_width=True, hide_index=True)
 
         pdf_data = gerar_pdf_palpites(my_preds, user["full_name"])
         st.download_button(
@@ -465,7 +458,7 @@ with tab_stats:
                     "Corretos": data["corretos"],
                 }
             )
-        st.dataframe(pd.DataFrame(phase_rows), width="stretch", hide_index=True)
+        st.dataframe(pd.DataFrame(phase_rows), use_container_width=True, hide_index=True)
 
 # --- Audit ---
 with tab_audit:
@@ -505,7 +498,7 @@ with tab_audit:
             df_h = df_h[df_h["Jogo ID"] == game_filter]
 
         st.dataframe(
-            df_h.drop(columns=["Jogo ID"]), width="stretch", hide_index=True
+            df_h.drop(columns=["Jogo ID"]), use_container_width=True, hide_index=True
         )
     else:
         st.info("Nenhum histórico disponível.")
@@ -517,7 +510,7 @@ with tab_audit:
             pd.DataFrame(sp_hist)[
                 ["version", "champion", "vice", "top_scorer", "saved_at"]
             ],
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
         )
 
@@ -634,32 +627,28 @@ with tab_all:
                         by=["ID Jogo", "Participante"]
                     ).reset_index(drop=True)
 
-            st.dataframe(df_outros, width="stretch", hide_index=True)
+            st.dataframe(df_outros, use_container_width=True, hide_index=True)
         else:
             st.info("Nenhum palpite registrado nesta fase.")
 
-        st.divider()
-        st.subheader("Palpites especiais de todos")
-        all_sp = db.get_all_special_predictions()
-        if all_sp:
-            df_sp = pd.DataFrame(all_sp)[
-                [
-                    "full_name",
-                    "champion",
-                    "vice",
-                    "top_scorer",
-                    "points_champion",
-                    "points_vice",
-                    "points_scorer",
-                ]
-            ]
-            df_sp.columns = [
-                "Participante",
-                "Campeão",
-                "Vice",
-                "Artilheiro",
-                "Pts Campeão",
-                "Pts Vice",
-                "Pts Artilheiro",
-            ]
-            st.dataframe(df_sp, width="stretch", hide_index=True)
+    st.divider()
+    st.subheader("Palpites especiais de todos")
+    all_sp = db.get_all_special_predictions()
+    if all_sp:
+        settings = db.get_tournament_settings()
+        rows_sp = []
+        for row in all_sp:
+            pc, pv, ps = scoring.calculate_special_points(
+                row.get("champion"), row.get("vice"), row.get("top_scorer"), settings
+            )
+            rows_sp.append({
+                "Participante": row.get("full_name", "-"),
+                "Campeão": row.get("champion", "-"),
+                "Vice": row.get("vice", "-"),
+                "Artilheiro": row.get("top_scorer", "-"),
+                "Pts Campeão": int(pc),
+                "Pts Vice": int(pv),
+                "Pts Artilheiro": int(ps)
+            })
+        df_sp = pd.DataFrame(rows_sp)
+        st.dataframe(df_sp, use_container_width=True, hide_index=True)
